@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>MonPlein</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
+<style>
+/* ============================================
+   RESET & VARIABLES
+   ============================================ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-deep:#0a0a0f;--bg-card:#12131a;--bg-input:#0e0f16;
+  --border:#1e2030;--border-focus:#f59e0b;
+  --amber-400:#fbbf24;--amber-500:#f59e0b;--amber-600:#d97706;
+  --amber-glow:rgba(245,158,11,0.15);
+  --green:#34d399;--green-dim:rgba(52,211,153,0.12);
+  --red:#f87171;--red-dim:rgba(248,113,113,0.12);
+  --blue:#818cf8;--blue-dim:rgba(129,140,248,0.12);
+  --text-primary:#e8e8ed;--text-secondary:#8a8a9a;--text-muted:#55556a;
+  --font-display:'DM Sans',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','Fira Code',monospace;
+  --radius-sm:8px;--radius-md:12px;--radius-lg:16px;--radius-xl:20px;
+  --shadow-modal:0 25px 80px rgba(0,0,0,0.7);
+}
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+html{font-size:16px;-webkit-tap-highlight-color:transparent}
+body{font-family:var(--font-display);background:var(--bg-deep);color:var(--text-primary);min-height:100dvh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(245,158,11,0.06),transparent 70%),radial-gradient(ellipse 60% 40% at 80% 100%,rgba(245,158,11,0.03),transparent 60%);pointer-events:none;z-index:0}
+
+.app{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:0 16px 180px}
+
+/* ============================================
+   HEADER
+   ============================================ */
+.header{padding:24px 0 20px;display:flex;align-items:center;justify-content:space-between}
+.header-brand{display:flex;align-items:center;gap:10px}
+.header-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--amber-500),var(--amber-600));border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 20px var(--amber-glow)}
+.header h1{font-size:1.3rem;font-weight:700;letter-spacing:-0.02em}
+.header h1 span{color:var(--amber-500)}
+.header-actions{display:flex;gap:6px}
+.header-btn{width:36px;height:36px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all 0.2s}
+.header-btn:hover{border-color:var(--amber-500);color:var(--amber-500)}
+
+/* ============================================
+   KM DÉPART — discret sous le header
+   ============================================ */
+/* Premier remplissage — seule fois où on montre un vrai champ */
+.km-depart-banner{background:var(--bg-card);border:1px solid var(--amber-600);border-radius:var(--radius-md);padding:16px;margin-bottom:16px;display:flex;flex-direction:column;gap:10px}
+.km-depart-banner .label{font-size:0.78rem;font-weight:600;color:var(--amber-400)}
+.km-depart-banner .row{display:flex;gap:10px;align-items:center}
+.km-depart-banner input{flex:1;padding:10px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-mono);font-size:0.9rem;outline:none;transition:border-color 0.2s}
+.km-depart-banner input:focus{border-color:var(--border-focus)}
+.km-depart-banner button{padding:10px 16px;border:none;border-radius:var(--radius-sm);background:var(--amber-500);color:#000;font-family:var(--font-display);font-size:0.82rem;font-weight:700;cursor:pointer;transition:all 0.2s;white-space:nowrap}
+
+/* Une fois renseigné — juste une petite ligne cliquable */
+.km-depart-inline{display:flex;align-items:center;gap:6px;margin-bottom:12px;cursor:pointer;user-select:none;-webkit-user-select:none}
+.km-depart-inline .km-text{font-size:0.7rem;color:var(--text-muted);display:flex;align-items:center;gap:5px}
+.km-depart-inline .km-text strong{color:var(--text-secondary);font-family:var(--font-mono);font-weight:500}
+.km-depart-inline .km-chevron{font-size:0.55rem;color:var(--text-muted);transition:transform 0.25s}
+.km-depart-inline.open .km-chevron{transform:rotate(180deg)}
+
+/* Panneau d'édition déplié */
+.km-depart-edit{max-height:0;opacity:0;overflow:hidden;transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1),opacity 0.2s ease,margin 0.3s ease;margin-bottom:0}
+.km-depart-edit.open{max-height:60px;opacity:1;margin-bottom:12px}
+.km-depart-edit .row{display:flex;gap:8px;align-items:center}
+.km-depart-edit input{flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-mono);font-size:0.82rem;outline:none;transition:border-color 0.2s}
+.km-depart-edit input:focus{border-color:var(--border-focus)}
+.km-depart-edit button{padding:8px 12px;border:none;border-radius:var(--radius-sm);background:var(--amber-500);color:#000;font-family:var(--font-display);font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap}
+
+/* ============================================
+   TABS
+   ============================================ */
+.tabs{display:flex;gap:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:4px;margin-bottom:20px}
+.tab{flex:1;padding:10px 0;border:none;border-radius:var(--radius-sm);background:transparent;color:var(--text-secondary);font-family:var(--font-display);font-size:0.78rem;font-weight:500;cursor:pointer;transition:all 0.25s;text-align:center}
+.tab.active{background:var(--amber-500);color:#000;font-weight:600;box-shadow:0 2px 12px rgba(245,158,11,0.3)}
+.tab:not(.active):hover{color:var(--text-primary)}
+.section{display:none}
+.section.active{display:block;animation:fadeUp 0.35s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* ============================================
+   STAT CARDS
+   ============================================ */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px;transition:border-color 0.2s}
+.stat-card:hover{border-color:#2a2b3d}
+.stat-card.wide{grid-column:1/-1}
+.stat-label{font-size:0.68rem;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px}
+.stat-value{font-family:var(--font-mono);font-size:1.35rem;font-weight:600;color:var(--text-primary);line-height:1.1}
+.stat-value .unit{font-size:0.65rem;font-weight:400;color:var(--text-secondary);margin-left:3px}
+.stat-sub{font-size:0.7rem;color:var(--text-secondary);margin-top:4px}
+
+/* ============================================
+   SCORE GAUGE
+   ============================================ */
+.score-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;margin-bottom:20px;display:flex;align-items:center;gap:16px}
+.score-ring{position:relative;width:72px;height:72px;flex-shrink:0}
+.score-ring svg{transform:rotate(-90deg)}
+.score-ring .bg{stroke:#1e2030;fill:none;stroke-width:6}
+.score-ring .fg{fill:none;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1)}
+.score-number{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:1.2rem;font-weight:700}
+.score-info{flex:1}
+.score-info .title{font-size:0.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}
+.score-info .desc{font-size:0.8rem;color:var(--text-secondary);line-height:1.4}
+
+/* ============================================
+   ANALYSIS & ALERT CARDS
+   ============================================ */
+.analysis-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;margin-bottom:14px}
+.analysis-card .label{font-size:0.72rem;font-weight:600;color:var(--amber-500);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px}
+.analysis-card .message{font-size:0.85rem;color:var(--text-secondary);line-height:1.5}
+
+.alert-card{background:var(--bg-card);border:1px solid rgba(248,113,113,0.3);border-radius:var(--radius-md);padding:14px;margin-bottom:14px}
+.alert-card .message{font-size:0.85rem;color:var(--red);line-height:1.5}
+
+/* ============================================
+   HISTORY
+   ============================================ */
+.history-controls{display:flex;gap:8px;margin-bottom:12px}
+.filter-btn{padding:7px 14px;border:1px solid var(--border);border-radius:20px;background:transparent;color:var(--text-secondary);font-family:var(--font-display);font-size:0.75rem;font-weight:500;cursor:pointer;transition:all 0.2s}
+.filter-btn.active{background:var(--amber-500);color:#000;border-color:var(--amber-500);font-weight:600}
+.filter-btn:not(.active):hover{border-color:var(--text-secondary)}
+
+.history-list{display:flex;flex-direction:column;gap:8px}
+.history-item{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;transition:all 0.3s}
+.history-item:hover{border-color:#2a2b3d}
+.history-item.highlight{border-color:var(--amber-600);box-shadow:0 0 20px var(--amber-glow)}
+.history-item.anomaly{border-color:rgba(248,113,113,0.3)}
+.history-date{font-size:0.72rem;color:var(--text-muted);font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.history-main{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:2px}
+.history-conso{font-family:var(--font-mono);font-size:1.1rem;font-weight:600;color:var(--text-primary)}
+.history-conso .unit{font-size:0.65rem;color:var(--text-secondary);font-weight:400}
+.history-meta{display:flex;gap:10px;font-size:0.72rem;color:var(--text-secondary);flex-wrap:wrap}
+.history-badge{font-size:0.6rem;padding:2px 7px;border-radius:10px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em}
+.badge-ville{background:rgba(99,102,241,0.12);color:#818cf8}
+.badge-mixte{background:rgba(245,158,11,0.12);color:var(--amber-400)}
+.badge-autoroute{background:rgba(52,211,153,0.12);color:var(--green)}
+.badge-partiel{background:rgba(138,138,154,0.12);color:var(--text-secondary)}
+.badge-anomaly{background:var(--red-dim);color:var(--red);font-weight:600}
+.badge-score{font-family:var(--font-mono);font-weight:600;font-size:0.62rem;padding:2px 7px;border-radius:10px}
+.badge-score-good{background:var(--green-dim);color:var(--green)}
+.badge-score-ok{background:rgba(245,158,11,0.12);color:var(--amber-400)}
+.badge-score-bad{background:var(--red-dim);color:var(--red)}
+
+.history-delete{width:30px;height:30px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.2s;align-self:center}
+.history-delete:hover{background:var(--red-dim);color:var(--red)}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.empty-state .icon{font-size:40px;margin-bottom:12px}
+.empty-state p{font-size:0.88rem;line-height:1.5}
+
+/* ============================================
+   CHARTS
+   ============================================ */
+.chart-container{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;margin-bottom:16px}
+.chart-title{font-size:0.78rem;font-weight:600;color:var(--text-secondary);margin-bottom:12px}
+.chart-wrap{position:relative;height:220px}
+.chart-wrap canvas{width:100%!important;height:100%!important}
+
+/* ============================================
+   FAB
+   ============================================ */
+.fab{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);max-width:608px;width:calc(100% - 32px);padding:15px;border:none;border-radius:var(--radius-md);background:linear-gradient(135deg,var(--amber-500),var(--amber-600));color:#000;font-family:var(--font-display);font-size:0.95rem;font-weight:700;cursor:pointer;z-index:50;box-shadow:0 4px 30px rgba(245,158,11,0.35);transition:all 0.25s;letter-spacing:-0.01em}
+.fab:hover{box-shadow:0 4px 40px rgba(245,158,11,0.5);transform:translateX(-50%) translateY(-1px)}
+.fab:active{transform:translateX(-50%) scale(0.98)}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+.footer-copyright{position:fixed;bottom:0;left:0;right:0;text-align:center;padding:6px 0;font-size:0.62rem;color:var(--text-muted);letter-spacing:0.05em;background:linear-gradient(to top,var(--bg-deep) 60%,transparent);z-index:49;pointer-events:none}
+.footer-copyright strong{color:var(--amber-500);font-weight:600}
+
+/* ============================================
+   MODAL
+   ============================================ */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:100;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl) var(--radius-xl) 0 0;width:100%;max-width:640px;max-height:90dvh;overflow-y:auto;padding:24px 20px 36px;animation:slideUp 0.35s cubic-bezier(0.16,1,0.3,1)}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.modal-header h2{font-size:1.1rem;font-weight:700;letter-spacing:-0.02em}
+.modal-close{width:34px;height:34px;border:1px solid var(--border);border-radius:var(--radius-sm);background:transparent;color:var(--text-secondary);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.modal-close:hover{border-color:var(--red);color:var(--red)}
+
+/* FORM */
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:0.75rem;font-weight:500;color:var(--text-secondary);margin-bottom:6px}
+.form-label .req{color:var(--amber-500)}
+.form-input{width:100%;padding:12px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-mono);font-size:0.95rem;outline:none;transition:border-color 0.2s}
+.form-input:focus{border-color:var(--border-focus)}
+.form-input::placeholder{color:var(--text-muted)}
+.form-input.error{border-color:var(--red);animation:shake 0.3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.form-error{font-size:0.7rem;color:var(--red);margin-top:4px;display:none}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-select{width:100%;padding:12px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-display);font-size:0.9rem;outline:none;appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238a8a9a' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;transition:border-color 0.2s}
+.form-select:focus{border-color:var(--border-focus)}
+
+/* Checkbox plein complet */
+.form-check{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:border-color 0.2s;user-select:none}
+.form-check:hover{border-color:var(--border-focus)}
+.form-check input[type="checkbox"]{width:18px;height:18px;accent-color:var(--amber-500);cursor:pointer;flex-shrink:0}
+.form-check .check-label{font-size:0.85rem;color:var(--text-primary)}
+.form-check .check-hint{font-size:0.7rem;color:var(--text-muted);margin-top:2px}
+
+/* Price mode switch */
+.price-switch{display:flex;align-items:center;gap:0;margin-bottom:6px}
+.price-switch-btn{flex:1;padding:7px 0;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-family:var(--font-display);font-size:0.72rem;font-weight:500;cursor:pointer;transition:all 0.2s;text-align:center}
+.price-switch-btn:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm);border-right:none}
+.price-switch-btn:last-child{border-radius:0 var(--radius-sm) var(--radius-sm) 0}
+.price-switch-btn.active{background:var(--amber-500);color:#000;border-color:var(--amber-500);font-weight:600}
+.price-switch-btn:not(.active):hover{color:var(--text-secondary);border-color:var(--text-muted)}
+.price-calc{font-size:0.68rem;color:var(--text-muted);margin-top:5px;font-style:italic;min-height:1em}
+
+.form-submit{width:100%;padding:14px;border:none;border-radius:var(--radius-sm);background:linear-gradient(135deg,var(--amber-500),var(--amber-600));color:#000;font-family:var(--font-display);font-size:0.92rem;font-weight:700;cursor:pointer;margin-top:8px;transition:all 0.2s}
+.form-submit:hover{box-shadow:0 4px 20px rgba(245,158,11,0.3)}
+.form-submit:active{transform:scale(0.98)}
+
+/* ============================================
+   CONFIRM & TOAST
+   ============================================ */
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:20px}
+.confirm-overlay.open{display:flex}
+.confirm-box{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;max-width:340px;width:100%;text-align:center;box-shadow:var(--shadow-modal)}
+.confirm-box p{font-size:0.9rem;color:var(--text-secondary);margin-bottom:20px;line-height:1.5}
+.confirm-actions{display:flex;gap:10px}
+.confirm-btn{flex:1;padding:11px;border-radius:var(--radius-sm);border:none;font-family:var(--font-display);font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.2s}
+.confirm-cancel{background:transparent;border:1px solid var(--border);color:var(--text-secondary)}
+.confirm-danger{background:var(--red);color:#fff}
+
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 20px;font-size:0.84rem;color:var(--text-primary);box-shadow:var(--shadow-modal);z-index:300;opacity:0;pointer-events:none;transition:all 0.35s cubic-bezier(0.16,1,0.3,1)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ============================================
+   SECTION DIVIDER
+   ============================================ */
+.section-title{font-size:0.68rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin:20px 0 10px;padding-left:2px}
+
+/* ============================================
+   SCROLLBAR & RESPONSIVE
+   ============================================ */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+@media(min-width:500px){
+  .modal{border-radius:var(--radius-xl);margin:auto;max-height:85dvh}
+  .modal-overlay{align-items:center;padding:20px}
+  @keyframes slideUp{from{opacity:0;transform:translateY(30px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ======== HEADER ======== -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="header-icon">⛽</div>
+      <h1>Mon<span>Plein</span></h1>
+    </div>
+    <div class="header-actions">
+      <button class="header-btn" onclick="document.getElementById('import-file').click()" title="Importer JSON">↑</button>
+      <button class="header-btn" onclick="exportData()" title="Exporter JSON">↓</button>
+      <button class="header-btn" onclick="confirmReset()" title="Réinitialiser">⟳</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+  </header>
+
+  <!-- ======== KM DÉPART ======== -->
+  <div id="km-depart-zone"></div>
+
+  <!-- ======== TABS ======== -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="dashboard">Tableau de bord</button>
+    <button class="tab" data-tab="history">Historique</button>
+    <button class="tab" data-tab="charts">Graphiques</button>
+  </nav>
+
+  <!-- ================================================================
+       SECTION: DASHBOARD
+       ================================================================ -->
+  <div class="section active" id="sec-dashboard">
+
+    <!-- Score de conduite -->
+    <div class="score-card" id="score-card" style="display:none">
+      <div class="score-ring" id="score-ring">
+        <svg width="72" height="72" viewBox="0 0 72 72">
+          <circle class="bg" cx="36" cy="36" r="30"/>
+          <circle class="fg" id="score-arc" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5"/>
+        </svg>
+        <div class="score-number" id="score-number">—</div>
+      </div>
+      <div class="score-info">
+        <div class="title">Score dernier plein</div>
+        <div class="desc" id="score-desc">—</div>
+      </div>
+    </div>
+
+    <!-- Alerte anomalie -->
+    <div class="alert-card" id="anomaly-alert" style="display:none">
+      <div class="message" id="anomaly-msg"></div>
+    </div>
+
+    <!-- Analyse intelligente -->
+    <div class="analysis-card" id="analysis" style="display:none">
+      <div class="label">🧠 Analyse</div>
+      <div class="message" id="analysis-msg"></div>
+    </div>
+
+    <!-- Stats principales -->
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Conso. moyenne</div><div class="stat-value" id="stat-conso">—</div></div>
+      <div class="stat-card"><div class="stat-label">Moy. 5 derniers</div><div class="stat-value" id="stat-conso5">—</div></div>
+      <div class="stat-card"><div class="stat-label">Km / plein</div><div class="stat-value" id="stat-kmplein">—</div></div>
+      <div class="stat-card"><div class="stat-label">Coût moyen / km</div><div class="stat-value" id="stat-coutkm">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total dépensé</div><div class="stat-value" id="stat-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Nb. de pleins</div><div class="stat-value" id="stat-count">0</div></div>
+    </div>
+
+    <!-- Autonomie -->
+    <div class="section-title">🔋 Autonomie</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Autonomie moy.</div><div class="stat-value" id="stat-auto-avg">—</div></div>
+      <div class="stat-card"><div class="stat-label">Autonomie estimée</div><div class="stat-value" id="stat-auto-est">—</div></div>
+    </div>
+
+    <!-- Projections -->
+    <div class="section-title">💰 Projections</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Coût / mois estimé</div><div class="stat-value" id="stat-cost-month">—</div></div>
+      <div class="stat-card"><div class="stat-label">Coût / an estimé</div><div class="stat-value" id="stat-cost-year">—</div></div>
+      <div class="stat-card"><div class="stat-label">Jours moy. / plein</div><div class="stat-value" id="stat-days-avg">—</div></div>
+      <div class="stat-card"><div class="stat-label">Km / jour moyen</div><div class="stat-value" id="stat-km-day">—</div></div>
+    </div>
+
+    <!-- Best / Worst -->
+    <div class="section-title">🏅 Records</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">🏆 Meilleur plein</div><div class="stat-value" id="stat-best">—</div><div class="stat-sub" id="stat-best-sub"></div></div>
+      <div class="stat-card"><div class="stat-label">📉 Pire plein</div><div class="stat-value" id="stat-worst">—</div><div class="stat-sub" id="stat-worst-sub"></div></div>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       SECTION: HISTORY
+       ================================================================ -->
+  <div class="section" id="sec-history">
+    <div class="history-controls">
+      <button class="filter-btn active" onclick="setFilter('all')">Tous</button>
+      <button class="filter-btn" onclick="setFilter('5')">5 derniers</button>
+      <button class="filter-btn" onclick="setFilter('10')">10 derniers</button>
+    </div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+  <!-- ================================================================
+       SECTION: CHARTS
+       ================================================================ -->
+  <div class="section" id="sec-charts">
+    <div class="chart-container">
+      <div class="chart-title">Consommation (L/100 km)</div>
+      <div class="chart-wrap"><canvas id="chartConso"></canvas></div>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">Kilomètres par plein</div>
+      <div class="chart-wrap"><canvas id="chartKm"></canvas></div>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">Coût du plein · Litres · Prix au litre</div>
+      <div class="chart-wrap"><canvas id="chartPrix"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="fab" onclick="openModal()">＋ Ajouter un plein</button>
+<!-- COPYRIGHT -->
+<div class="footer-copyright">© 2026 MonPlein — by <strong>WEYNII</strong></div>
+
+<!-- ================================================================
+     MODAL — Nouveau plein
+     ================================================================ -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Nouveau plein</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <form id="fuel-form" onsubmit="handleSubmit(event)">
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" class="form-input" id="f-date" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Kilométrage compteur <span class="req">*</span></label>
+        <input type="number" class="form-input" id="f-km" placeholder="ex: 85230" required min="0" step="1">
+        <div class="form-error" id="f-km-error">Le kilométrage doit être supérieur au précédent</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Litres ajoutés <span class="req">*</span></label>
+          <input type="number" class="form-input" id="f-litres" placeholder="ex: 42.5" required min="0.1" step="0.01" oninput="updatePriceCalc()">
+        </div>
+        <div class="form-group">
+          <div class="price-switch">
+            <button type="button" class="price-switch-btn active" id="sw-prixl" onclick="setPriceMode('litre')">Prix / L</button>
+            <button type="button" class="price-switch-btn" id="sw-prixtotal" onclick="setPriceMode('total')">Prix total</button>
+          </div>
+          <input type="number" class="form-input" id="f-prix" placeholder="ex: 1.72" min="0" step="0.001" oninput="updatePriceCalc()">
+          <div class="price-calc" id="price-calc"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Type de trajet</label>
+          <select class="form-select" id="f-trajet">
+            <option value="mixte">Mixte</option>
+            <option value="ville">Ville</option>
+            <option value="autoroute">Autoroute</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Plein complet ?</label>
+          <label class="form-check">
+            <input type="checkbox" id="f-complet" checked>
+            <div>
+              <div class="check-label">Plein complet</div>
+              <div class="check-hint">Décocher si partiel</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      <button type="submit" class="form-submit">Enregistrer le plein</button>
+    </form>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <p id="confirm-msg"></p>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-cancel" onclick="closeConfirm()">Annuler</button>
+      <button class="confirm-btn confirm-danger" id="confirm-ok">Confirmer</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+/* ============================================================
+   MonPlein v2 — by WEYNII
+   Application de suivi carburant avancée
+   ============================================================ */
+
+/* ===========================================
+   1. STOCKAGE (localStorage avec fallback)
+   =========================================== */
+var SK = 'monplein_data';
+var SK_KM = 'monplein_km_depart';
+
+function lsGet(k) { try { return localStorage.getItem(k); } catch(e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch(e) {} }
+function lsRm(k) { try { localStorage.removeItem(k); } catch(e) {} }
+function loadData() { try { return JSON.parse(lsGet(SK)) || []; } catch(e) { return []; } }
+function saveData(d) { lsSet(SK, JSON.stringify(d)); }
+
+var entries = loadData();
+var kmDepart = parseFloat(lsGet(SK_KM)) || null;
+var historyFilter = 'all'; // Filtre historique
+
+/* ===========================================
+   2. KM DE DÉPART
+   =========================================== */
+function renderKmDepart() {
+  var z = document.getElementById('km-depart-zone');
+  if (kmDepart !== null) {
+    // Discret : juste une petite ligne texte avec chevron
+    z.innerHTML =
+      '<div class="km-depart-inline" id="km-inline" onclick="toggleKmEdit()">' +
+        '<span class="km-text">🚗 Départ : <strong>' + kmDepart.toLocaleString('fr-FR') + ' km</strong></span>' +
+        '<span class="km-chevron">▼</span>' +
+      '</div>' +
+      '<div class="km-depart-edit" id="km-edit">' +
+        '<div class="row">' +
+          '<input type="number" id="km-depart-input" value="' + kmDepart + '" min="0" step="1">' +
+          '<button onclick="saveKmDepart()">OK</button>' +
+        '</div>' +
+      '</div>';
+  } else {
+    z.innerHTML = '<div class="km-depart-banner">' +
+      '<div class="label">🚗 Renseigne ton kilomètre de départ</div>' +
+      '<div class="row">' +
+        '<input type="number" id="km-depart-input" placeholder="ex: 82450" min="0" step="1">' +
+        '<button onclick="saveKmDepart()">Valider</button>' +
+      '</div></div>';
+  }
+}
+
+function toggleKmEdit() {
+  var inline = document.getElementById('km-inline');
+  var edit = document.getElementById('km-edit');
+  if (inline && edit) {
+    inline.classList.toggle('open');
+    edit.classList.toggle('open');
+  }
+}
+
+function saveKmDepart() {
+  var v = parseFloat(document.getElementById('km-depart-input').value);
+  if (isNaN(v) || v < 0) return;
+  kmDepart = v;
+  lsSet(SK_KM, v);
+  renderKmDepart();
+  refreshAll();
+  showToast('Km de départ enregistré ✓');
+}
+
+/* ===========================================
+   3. TABS
+   =========================================== */
+document.querySelectorAll('.tab').forEach(function(t) {
+  t.addEventListener('click', function() {
+    document.querySelectorAll('.tab').forEach(function(x) { x.classList.remove('active'); });
+    document.querySelectorAll('.section').forEach(function(x) { x.classList.remove('active'); });
+    t.classList.add('active');
+    document.getElementById('sec-' + t.dataset.tab).classList.add('active');
+    if (t.dataset.tab === 'charts') renderCharts();
+  });
+});
+
+/* ===========================================
+   4. MODAL — ouverture / fermeture / validation
+   =========================================== */
+function openModal() {
+  // Pré-remplir la date
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+  // Pré-remplir le km avec le dernier connu + autofocus
+  var kmInput = document.getElementById('f-km');
+  var lastKm = getLastKm();
+  if (lastKm !== null) {
+    kmInput.placeholder = 'Min. ' + (lastKm + 1).toLocaleString('fr-FR');
+    kmInput.min = lastKm + 1;
+  }
+
+  // Reset checkbox plein complet
+  document.getElementById('f-complet').checked = true;
+
+  // Reset price mode
+  priceMode = 'litre';
+  document.getElementById('sw-prixl').classList.add('active');
+  document.getElementById('sw-prixtotal').classList.remove('active');
+  document.getElementById('f-prix').placeholder = 'ex: 1.72';
+  document.getElementById('f-prix').step = '0.001';
+  document.getElementById('price-calc').textContent = '';
+
+  // Reset erreur
+  kmInput.classList.remove('error');
+  document.getElementById('f-km-error').style.display = 'none';
+
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // Autofocus sur km après animation
+  setTimeout(function() { kmInput.focus(); }, 400);
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('fuel-form').reset();
+}
+
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+/* Récupérer le dernier km enregistré */
+function getLastKm() {
+  if (entries.length === 0) return kmDepart;
+  var sorted = entries.slice().sort(function(a, b) { return a.km - b.km; });
+  return sorted[sorted.length - 1].km;
+}
+
+/* ===========================================
+   4b. SWITCH PRIX — Prix/L ou Prix Total
+   =========================================== */
+var priceMode = 'litre'; // 'litre' ou 'total'
+
+function setPriceMode(mode) {
+  priceMode = mode;
+  var btnL = document.getElementById('sw-prixl');
+  var btnT = document.getElementById('sw-prixtotal');
+  var input = document.getElementById('f-prix');
+
+  btnL.classList.toggle('active', mode === 'litre');
+  btnT.classList.toggle('active', mode === 'total');
+
+  // Reset et adapter le placeholder
+  input.value = '';
+  document.getElementById('price-calc').textContent = '';
+  if (mode === 'litre') {
+    input.placeholder = 'ex: 1.72';
+    input.step = '0.001';
+  } else {
+    input.placeholder = 'ex: 73.10';
+    input.step = '0.01';
+  }
+  input.focus();
+}
+
+function updatePriceCalc() {
+  var calc = document.getElementById('price-calc');
+  var prix = parseFloat(document.getElementById('f-prix').value);
+  var litres = parseFloat(document.getElementById('f-litres').value);
+
+  if (isNaN(prix) || prix <= 0 || isNaN(litres) || litres <= 0) {
+    calc.textContent = '';
+    return;
+  }
+
+  if (priceMode === 'litre') {
+    calc.textContent = '→ Total : ' + (prix * litres).toFixed(2) + ' €';
+  } else {
+    calc.textContent = '→ Prix/L : ' + (prix / litres).toFixed(3) + ' €';
+  }
+}
+
+/* ===========================================
+   5. SOUMISSION DU FORMULAIRE
+   =========================================== */
+function handleSubmit(e) {
+  e.preventDefault();
+
+  var date = document.getElementById('f-date').value;
+  var km = parseFloat(document.getElementById('f-km').value);
+  var litres = parseFloat(document.getElementById('f-litres').value);
+  var prixRaw = parseFloat(document.getElementById('f-prix').value) || null;
+  var trajet = document.getElementById('f-trajet').value;
+  var complet = document.getElementById('f-complet').checked;
+
+  // Validations
+  if (!date || isNaN(km) || isNaN(litres) || litres <= 0) return;
+
+  // Validation km > dernier km
+  var lastKm = getLastKm();
+  if (lastKm !== null && km <= lastKm) {
+    var kmInput = document.getElementById('f-km');
+    kmInput.classList.add('error');
+    document.getElementById('f-km-error').style.display = 'block';
+    kmInput.focus();
+    setTimeout(function() { kmInput.classList.remove('error'); }, 600);
+    return;
+  }
+
+  // Calculer prixL et cout selon le mode
+  var prixL = null;
+  var cout = null;
+
+  if (prixRaw !== null && prixRaw > 0) {
+    if (priceMode === 'litre') {
+      prixL = prixRaw;
+      cout = +(litres * prixL).toFixed(2);
+    } else {
+      // Mode total : prixRaw = coût total du plein
+      cout = +prixRaw.toFixed(2);
+      prixL = +(prixRaw / litres).toFixed(3);
+    }
+  }
+
+  // Créer l'entrée
+  var entry = {
+    id: Date.now(),
+    date: date,
+    km: km,
+    litres: litres,
+    prixL: prixL,
+    trajet: trajet,
+    complet: complet,
+    cout: cout
+  };
+
+  entries.push(entry);
+  entries.sort(function(a, b) { return a.km - b.km; });
+  saveData(entries);
+  closeModal();
+  refreshAll();
+  showToast('Plein enregistré ✓');
+}
+
+/* ===========================================
+   6. MOTEUR DE CALCUL — Fonction centrale
+   =========================================== */
+function computeEntries() {
+  var sorted = entries.slice().sort(function(a, b) { return a.km - b.km; });
+
+  return sorted.map(function(entry, i) {
+    var prevKm, jours = null;
+
+    // Déterminer le km précédent
+    if (i === 0) {
+      if (kmDepart !== null && entry.km > kmDepart) {
+        prevKm = kmDepart;
+      } else {
+        return assign(entry, { distance: null, conso: null, coutKm: null, jours: null, score: null, anomaly: false });
+      }
+    } else {
+      prevKm = sorted[i - 1].km;
+      // Calcul des jours entre pleins
+      var d1 = new Date(sorted[i - 1].date + 'T00:00:00');
+      var d2 = new Date(entry.date + 'T00:00:00');
+      jours = Math.round((d2 - d1) / 86400000);
+      if (jours < 0) jours = null;
+    }
+
+    var distance = entry.km - prevKm;
+
+    // Ignorer les distances négatives/nulles (incohérence)
+    if (distance <= 0) {
+      return assign(entry, { distance: null, conso: null, coutKm: null, jours: jours, score: null, anomaly: false });
+    }
+
+    // Si plein NON complet → pas de calcul de conso
+    if (!entry.complet) {
+      return assign(entry, { distance: distance, conso: null, coutKm: null, jours: jours, score: null, anomaly: false });
+    }
+
+    var conso = +((entry.litres / distance) * 100).toFixed(2);
+    var coutKm = (entry.cout && distance > 0) ? +(entry.cout / distance).toFixed(3) : null;
+
+    return assign(entry, { distance: distance, conso: conso, coutKm: coutKm, jours: jours, score: null, anomaly: false });
+  });
+}
+
+/* Utilitaire Object.assign compatible */
+function assign(target) {
+  var result = {};
+  for (var k in target) result[k] = target[k];
+  for (var i = 1; i < arguments.length; i++) {
+    var src = arguments[i];
+    for (var k2 in src) result[k2] = src[k2];
+  }
+  return result;
+}
+
+/* Filtrer les entrées avec conso valide (pleins complets uniquement) */
+function getValidConso(computed) {
+  return computed.filter(function(e) { return e.conso !== null && e.conso > 0; });
+}
+
+/* ===========================================
+   7. SCORE DE CONDUITE (0-100)
+   =========================================== */
+function computeScores(computed) {
+  var valid = getValidConso(computed);
+  if (valid.length < 2) return computed;
+
+  var avgConso = valid.reduce(function(s, e) { return s + e.conso; }, 0) / valid.length;
+
+  return computed.map(function(e) {
+    if (e.conso === null) return e;
+
+    // Score : 100 si conso = 0, 50 si conso = moyenne, 0 si conso = 2x moyenne
+    var ratio = e.conso / avgConso;
+    var score = Math.round(Math.max(0, Math.min(100, (2 - ratio) * 50)));
+
+    // Anomalie : conso > moyenne + 15%
+    var anomaly = e.conso > avgConso * 1.15;
+
+    return assign(e, { score: score, anomaly: anomaly });
+  });
+}
+
+/* ===========================================
+   8. STATISTIQUES DASHBOARD
+   =========================================== */
+function updateStats() {
+  var computed = computeScores(computeEntries());
+  var wC = getValidConso(computed);
+  var wK = computed.filter(function(e) { return e.coutKm !== null; });
+
+  document.getElementById('stat-count').textContent = entries.length;
+
+  // === RESET si pas assez de données ===
+  if (wC.length === 0) {
+    var ids = ['stat-conso','stat-conso5','stat-kmplein','stat-coutkm','stat-total',
+               'stat-best','stat-worst','stat-auto-avg','stat-auto-est',
+               'stat-cost-month','stat-cost-year','stat-days-avg','stat-km-day'];
+    ids.forEach(function(id) { document.getElementById(id).innerHTML = '—'; });
+    document.getElementById('stat-best-sub').textContent = '';
+    document.getElementById('stat-worst-sub').textContent = '';
+    document.getElementById('analysis').style.display = 'none';
+    document.getElementById('score-card').style.display = 'none';
+    document.getElementById('anomaly-alert').style.display = 'none';
+    return;
+  }
+
+  // --- Consommation moyenne globale ---
+  var avgConso = wC.reduce(function(s, e) { return s + e.conso; }, 0) / wC.length;
+  document.getElementById('stat-conso').innerHTML = avgConso.toFixed(1) + '<span class="unit">L/100</span>';
+
+  // --- Moyenne glissante 5 derniers ---
+  var last5 = wC.slice(-5);
+  var avg5 = last5.reduce(function(s, e) { return s + e.conso; }, 0) / last5.length;
+  document.getElementById('stat-conso5').innerHTML = avg5.toFixed(1) + '<span class="unit">L/100</span>';
+
+  // --- Km moyen par plein ---
+  var avgKm = Math.round(wC.reduce(function(s, e) { return s + e.distance; }, 0) / wC.length);
+  document.getElementById('stat-kmplein').innerHTML = avgKm + '<span class="unit">km</span>';
+
+  // --- Coût moyen / km ---
+  if (wK.length > 0) {
+    var avgCK = (wK.reduce(function(s, e) { return s + e.coutKm; }, 0) / wK.length).toFixed(3);
+    document.getElementById('stat-coutkm').innerHTML = avgCK + '<span class="unit">€/km</span>';
+  } else {
+    document.getElementById('stat-coutkm').innerHTML = '—';
+  }
+
+  // --- Total dépensé ---
+  var totalC = entries.reduce(function(s, e) { return s + (e.cout || 0); }, 0);
+  document.getElementById('stat-total').innerHTML = totalC.toFixed(0) + '<span class="unit">€</span>';
+
+  // --- Best / Worst ---
+  var best = wC.reduce(function(a, b) { return a.distance > b.distance ? a : b; });
+  var worst = wC.reduce(function(a, b) { return a.distance < b.distance ? a : b; });
+  document.getElementById('stat-best').innerHTML = best.distance + '<span class="unit">km</span>';
+  document.getElementById('stat-best-sub').textContent = best.conso + ' L/100 — ' + formatDate(best.date);
+  document.getElementById('stat-worst').innerHTML = worst.distance + '<span class="unit">km</span>';
+  document.getElementById('stat-worst-sub').textContent = worst.conso + ' L/100 — ' + formatDate(worst.date);
+
+  // --- Autonomie ---
+  document.getElementById('stat-auto-avg').innerHTML = avgKm + '<span class="unit">km</span>';
+  // Autonomie estimée = (litres du dernier plein / conso moyenne) * 100
+  var lastEntry = entries[entries.length - 1];
+  if (lastEntry && avgConso > 0) {
+    var autoEst = Math.round((lastEntry.litres / avgConso) * 100);
+    document.getElementById('stat-auto-est').innerHTML = autoEst + '<span class="unit">km</span>';
+  }
+
+  // --- Jours entre pleins ---
+  var withJours = computed.filter(function(e) { return e.jours !== null && e.jours > 0; });
+  if (withJours.length > 0) {
+    var avgJours = Math.round(withJours.reduce(function(s, e) { return s + e.jours; }, 0) / withJours.length);
+    document.getElementById('stat-days-avg').innerHTML = avgJours + '<span class="unit">jours</span>';
+
+    // Km/jour
+    var kmJour = Math.round(avgKm / avgJours);
+    document.getElementById('stat-km-day').innerHTML = kmJour + '<span class="unit">km/j</span>';
+
+    // --- Projection financière ---
+    if (wK.length > 0) {
+      var avgCoutPlein = wK.reduce(function(s, e) { return s + (e.cout || 0); }, 0) / wK.length;
+      var pleinsParMois = 30 / avgJours;
+      var coutMois = Math.round(avgCoutPlein * pleinsParMois);
+      var coutAn = coutMois * 12;
+      document.getElementById('stat-cost-month').innerHTML = coutMois + '<span class="unit">€</span>';
+      document.getElementById('stat-cost-year').innerHTML = coutAn + '<span class="unit">€</span>';
+    } else {
+      document.getElementById('stat-cost-month').innerHTML = '—';
+      document.getElementById('stat-cost-year').innerHTML = '—';
+    }
+  } else {
+    document.getElementById('stat-days-avg').innerHTML = '—';
+    document.getElementById('stat-km-day').innerHTML = '—';
+    document.getElementById('stat-cost-month').innerHTML = '—';
+    document.getElementById('stat-cost-year').innerHTML = '—';
+  }
+
+  // --- Score de conduite (dernier plein) ---
+  var lastComputed = computed.slice().reverse().find(function(e) { return e.score !== null; });
+  if (lastComputed) {
+    renderScore(lastComputed.score, lastComputed.conso, avgConso);
+  } else {
+    document.getElementById('score-card').style.display = 'none';
+  }
+
+  // --- Anomalie dernier plein ---
+  var lastWithConso = computed.slice().reverse().find(function(e) { return e.conso !== null; });
+  if (lastWithConso && lastWithConso.anomaly) {
+    var pct = (((lastWithConso.conso - avgConso) / avgConso) * 100).toFixed(0);
+    document.getElementById('anomaly-msg').innerHTML = '⚠️ Surconsommation détectée sur le dernier plein : <strong>' +
+      lastWithConso.conso + ' L/100</strong> soit +' + pct + '% au-dessus de ta moyenne (' + avgConso.toFixed(1) + ' L/100).';
+    document.getElementById('anomaly-alert').style.display = 'block';
+  } else {
+    document.getElementById('anomaly-alert').style.display = 'none';
+  }
+
+  // --- Analyse tendance ---
+  analyzeConsumption(wC);
+}
+
+/* ===========================================
+   9. RENDU DU SCORE
+   =========================================== */
+function renderScore(score, conso, avg) {
+  var card = document.getElementById('score-card');
+  card.style.display = 'flex';
+
+  // Couleur
+  var color;
+  if (score >= 65) color = '#34d399';
+  else if (score >= 40) color = '#f59e0b';
+  else color = '#f87171';
+
+  // Arc
+  var circumference = 188.5;
+  var offset = circumference - (circumference * score / 100);
+  var arc = document.getElementById('score-arc');
+  arc.style.stroke = color;
+  arc.style.strokeDashoffset = offset;
+
+  // Nombre
+  var num = document.getElementById('score-number');
+  num.textContent = score;
+  num.style.color = color;
+
+  // Description
+  var desc = document.getElementById('score-desc');
+  var diff = conso - avg;
+  if (score >= 65) {
+    desc.textContent = 'Excellente conduite ! ' + conso + ' L/100 (' + (diff > 0 ? '+' : '') + diff.toFixed(1) + ' vs moy.)';
+  } else if (score >= 40) {
+    desc.textContent = 'Conduite correcte. ' + conso + ' L/100 (+' + diff.toFixed(1) + ' vs moy.)';
+  } else {
+    desc.textContent = 'Consommation élevée. ' + conso + ' L/100 (+' + diff.toFixed(1) + ' vs moy.)';
+  }
+}
+
+/* ===========================================
+   10. ANALYSE INTELLIGENTE (3 derniers)
+   =========================================== */
+function analyzeConsumption(wC) {
+  var el = document.getElementById('analysis');
+  var msg = document.getElementById('analysis-msg');
+  if (wC.length < 3) { el.style.display = 'none'; return; }
+
+  el.style.display = 'block';
+  var l3 = wC.slice(-3), p3 = wC.slice(-6, -3);
+  var avg3 = l3.reduce(function(s, e) { return s + e.conso; }, 0) / l3.length;
+
+  if (p3.length >= 1) {
+    var avgP = p3.reduce(function(s, e) { return s + e.conso; }, 0) / p3.length;
+    var diff = ((avg3 - avgP) / avgP * 100).toFixed(1);
+    if (diff > 2) {
+      msg.innerHTML = '⚠️ Ta consommation a <strong>augmenté de ' + Math.abs(diff) + '%</strong> sur les 3 derniers pleins (' +
+        avg3.toFixed(1) + ' vs ' + avgP.toFixed(1) + ' L/100). Vérifie la pression des pneus ou ton style de conduite.';
+    } else if (diff < -2) {
+      msg.innerHTML = '✅ Ta consommation a <strong>baissé de ' + Math.abs(diff) + '%</strong> sur les 3 derniers pleins (' +
+        avg3.toFixed(1) + ' vs ' + avgP.toFixed(1) + ' L/100). Continue comme ça !';
+    } else {
+      msg.innerHTML = '📊 Consommation stable : <strong>' + avg3.toFixed(1) + ' L/100</strong>. Pas de variation significative.';
+    }
+  } else {
+    msg.innerHTML = '📊 Moyenne sur tes 3 derniers pleins : <strong>' + avg3.toFixed(1) + ' L/100</strong>. Continue pour des tendances plus fines.';
+  }
+}
+
+/* ===========================================
+   11. HISTORIQUE — avec filtre, score, anomalie, jours
+   =========================================== */
+function setFilter(f) {
+  historyFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  event.target.classList.add('active');
+  renderHistory();
+}
+
+function renderHistory() {
+  var list = document.getElementById('history-list');
+  var computed = computeScores(computeEntries()).reverse();
+
+  if (computed.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">⛽</div><p>Aucun plein enregistré.<br>Ajoute ton premier plein pour commencer !</p></div>';
+    return;
+  }
+
+  // Appliquer le filtre
+  var filtered = computed;
+  if (historyFilter === '5') filtered = computed.slice(0, 5);
+  else if (historyFilter === '10') filtered = computed.slice(0, 10);
+
+  var isFirst = true;
+
+  list.innerHTML = filtered.map(function(e) {
+    var bc = e.trajet === 'ville' ? 'badge-ville' : e.trajet === 'autoroute' ? 'badge-autoroute' : 'badge-mixte';
+    var cs = e.conso !== null ? e.conso : '—';
+    var ds = e.distance !== null ? e.distance + ' km' : 'Réf.';
+    var ct = e.cout ? e.cout.toFixed(2) + ' €' : '';
+    var pl = e.prixL ? e.prixL.toFixed(3) + ' €/L' : '';
+    var joursStr = e.jours !== null ? e.jours + 'j' : '';
+    var classes = 'history-item';
+
+    // Highlight le dernier plein
+    if (isFirst) { classes += ' highlight'; isFirst = false; }
+    if (e.anomaly) classes += ' anomaly';
+
+    // Badge score
+    var scoreBadge = '';
+    if (e.score !== null) {
+      var sc = e.score >= 65 ? 'badge-score-good' : e.score >= 40 ? 'badge-score-ok' : 'badge-score-bad';
+      scoreBadge = '<span class="badge-score ' + sc + '">' + e.score + '/100</span>';
+    }
+
+    // Badge plein partiel
+    var partielBadge = '';
+    if (e.complet === false) {
+      partielBadge = '<span class="history-badge badge-partiel">partiel</span>';
+    }
+
+    // Badge anomalie
+    var anomalyBadge = '';
+    if (e.anomaly) {
+      anomalyBadge = '<span class="history-badge badge-anomaly">⚠️ surcons.</span>';
+    }
+
+    return '<div class="' + classes + '"><div>' +
+      '<div class="history-date">' + formatDate(e.date) + '  ·  ' + e.km.toLocaleString('fr-FR') + ' km' +
+        (joursStr ? '  ·  <span style="color:var(--blue)">' + joursStr + '</span>' : '') +
+      '</div>' +
+      '<div class="history-main">' +
+        '<span class="history-conso">' + cs + '<span class="unit"> L/100</span></span>' +
+        '<span class="history-badge ' + bc + '">' + e.trajet + '</span>' +
+        partielBadge + scoreBadge + anomalyBadge +
+      '</div>' +
+      '<div class="history-meta">' +
+        '<span>' + ds + '</span><span>' + e.litres + ' L</span>' +
+        (pl ? '<span>' + pl + '</span>' : '') +
+        (ct ? '<span>' + ct + '</span>' : '') +
+      '</div>' +
+      '</div><button class="history-delete" onclick="confirmDelete(' + e.id + ')" title="Supprimer">🗑</button></div>';
+  }).join('');
+}
+
+/* ===========================================
+   12. GRAPHIQUES
+   =========================================== */
+var chartConso = null, chartKm = null, chartPrix = null;
+
+function baseOpts(unit) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1a1b25', borderColor: '#2a2b3d', borderWidth: 1,
+        titleColor: '#e8e8ed', bodyColor: '#8a8a9a', padding: 10, cornerRadius: 8,
+        callbacks: { label: function(ctx) { return ' ' + ctx.dataset.label + ' : ' + ctx.parsed.y + (unit || ''); } }
+      }
+    },
+    scales: {
+      x: { ticks: { color: '#55556a', font: { size: 10 }, maxRotation: 45 }, grid: { color: 'rgba(30,32,48,0.6)' } },
+      y: { beginAtZero: false, ticks: { color: '#55556a', font: { family: "'JetBrains Mono'", size: 11 } }, grid: { color: 'rgba(30,32,48,0.6)' } }
+    },
+    elements: {
+      point: { radius: 4, hoverRadius: 7, borderWidth: 2 },
+      line: { tension: 0.35, borderWidth: 2.5 }
+    }
+  };
+}
+
+function renderCharts() {
+  var computed = computeScores(computeEntries()).filter(function(e) { return e.conso !== null && e.distance !== null; });
+
+  if (chartConso) { chartConso.destroy(); chartConso = null; }
+  if (chartKm) { chartKm.destroy(); chartKm = null; }
+  if (chartPrix) { chartPrix.destroy(); chartPrix = null; }
+
+  if (computed.length === 0) return;
+
+  var labels = computed.map(function(e) { return formatDate(e.date); });
+  var lastIdx = computed.length - 1;
+
+  // Couleurs avec mise en évidence du dernier point
+  function highlightColors(baseColor, highlightColor) {
+    return computed.map(function(e, i) { return i === lastIdx ? highlightColor : baseColor; });
+  }
+
+  // 1) Consommation
+  chartConso = new Chart(document.getElementById('chartConso'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Conso',
+        data: computed.map(function(e) { return e.conso; }),
+        borderColor: '#f59e0b',
+        backgroundColor: 'rgba(245,158,11,0.08)',
+        pointBackgroundColor: highlightColors('#f59e0b', '#fff'),
+        pointBorderColor: highlightColors('#f59e0b', '#f59e0b'),
+        pointRadius: computed.map(function(e, i) { return i === lastIdx ? 7 : 4; }),
+        fill: true
+      }]
+    },
+    options: baseOpts(' L/100')
+  });
+
+  // 2) Km par plein
+  var kmOpts = baseOpts(' km');
+  kmOpts.scales.y.beginAtZero = true;
+  chartKm = new Chart(document.getElementById('chartKm'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Distance',
+        data: computed.map(function(e) { return e.distance; }),
+        backgroundColor: highlightColors('rgba(245,158,11,0.3)', 'rgba(245,158,11,0.7)'),
+        borderColor: highlightColors('#f59e0b', '#fbbf24'),
+        borderWidth: 1, borderRadius: 6, borderSkipped: false
+      }]
+    },
+    options: kmOpts
+  });
+
+  // 3) Coût + Litres + Prix/L
+  var wP = computed.filter(function(e) { return e.cout !== null || e.prixL !== null; });
+  if (wP.length > 0) {
+    var pLabels = wP.map(function(e) { return formatDate(e.date); });
+    chartPrix = new Chart(document.getElementById('chartPrix'), {
+      type: 'bar',
+      data: {
+        labels: pLabels,
+        datasets: [
+          { label: 'Coût plein (€)', type: 'bar', data: wP.map(function(e) { return e.cout || 0; }),
+            backgroundColor: 'rgba(52,211,153,0.3)', borderColor: '#34d399', borderWidth: 1, borderRadius: 6, borderSkipped: false, yAxisID: 'y' },
+          { label: 'Litres', type: 'bar', data: wP.map(function(e) { return e.litres; }),
+            backgroundColor: 'rgba(129,140,248,0.25)', borderColor: '#818cf8', borderWidth: 1, borderRadius: 6, borderSkipped: false, yAxisID: 'y' },
+          { label: 'Prix/L (€)', type: 'line', data: wP.map(function(e) { return e.prixL || null; }),
+            borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.08)', pointBackgroundColor: '#f87171', pointBorderColor: '#0a0a0f', fill: false, yAxisID: 'y1' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'bottom', labels: { color: '#8a8a9a', font: { size: 11, family: "'DM Sans'" }, padding: 12, usePointStyle: true, pointStyle: 'circle' } },
+          tooltip: { backgroundColor: '#1a1b25', borderColor: '#2a2b3d', borderWidth: 1, titleColor: '#e8e8ed', bodyColor: '#8a8a9a', padding: 10, cornerRadius: 8 }
+        },
+        scales: {
+          x: { ticks: { color: '#55556a', font: { size: 10 }, maxRotation: 45 }, grid: { color: 'rgba(30,32,48,0.6)' } },
+          y: { position: 'left', beginAtZero: true, title: { display: true, text: 'Litres / €', color: '#55556a', font: { size: 10 } },
+            ticks: { color: '#55556a', font: { family: "'JetBrains Mono'", size: 11 } }, grid: { color: 'rgba(30,32,48,0.6)' } },
+          y1: { position: 'right', title: { display: true, text: '€/L', color: '#55556a', font: { size: 10 } },
+            ticks: { color: '#f87171', font: { family: "'JetBrains Mono'", size: 11 } }, grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+  }
+}
+
+/* ===========================================
+   13. SUPPRESSION / RESET
+   =========================================== */
+var pendingDeleteId = null;
+
+function confirmDelete(id) {
+  pendingDeleteId = id;
+  document.getElementById('confirm-msg').textContent = 'Supprimer cet enregistrement ?';
+  document.getElementById('confirm-ok').onclick = function() {
+    entries = entries.filter(function(e) { return e.id !== pendingDeleteId; });
+    saveData(entries); closeConfirm(); refreshAll();
+    showToast('Plein supprimé');
+  };
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+
+function confirmReset() {
+  document.getElementById('confirm-msg').textContent = 'Réinitialiser toutes les données ? Cette action est irréversible.';
+  document.getElementById('confirm-ok').onclick = function() {
+    entries = []; saveData(entries);
+    kmDepart = null; lsRm(SK_KM);
+    closeConfirm(); renderKmDepart(); refreshAll();
+    showToast('Données réinitialisées');
+  };
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+
+function closeConfirm() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  pendingDeleteId = null;
+}
+
+/* ===========================================
+   14. EXPORT JSON
+   =========================================== */
+function exportData() {
+  if (entries.length === 0) { showToast('Aucune donnée à exporter'); return; }
+  var blob = new Blob([JSON.stringify({ kmDepart: kmDepart, pleins: entries }, null, 2)], { type: 'application/json' });
+  var u = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = u; a.download = 'monplein_' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click(); URL.revokeObjectURL(u);
+  showToast('Export téléchargé ✓');
+}
+
+/* ===========================================
+   14b. IMPORT JSON
+   =========================================== */
+function importData(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+
+      // Format attendu : { kmDepart: number, pleins: [...] }
+      // ou directement un tableau de pleins (ancien format)
+      var importedEntries = null;
+      var importedKm = null;
+
+      if (Array.isArray(data)) {
+        // Ancien format : tableau direct
+        importedEntries = data;
+      } else if (data && Array.isArray(data.pleins)) {
+        // Nouveau format avec kmDepart
+        importedEntries = data.pleins;
+        importedKm = data.kmDepart || null;
+      } else {
+        showToast('Format JSON non reconnu');
+        return;
+      }
+
+      // Validation basique des entrées
+      var valid = importedEntries.filter(function(entry) {
+        return entry && typeof entry.km === 'number' && typeof entry.litres === 'number' && entry.date;
+      });
+
+      if (valid.length === 0) {
+        showToast('Aucune entrée valide trouvée');
+        return;
+      }
+
+      // Demander confirmation si des données existent déjà
+      if (entries.length > 0) {
+        document.getElementById('confirm-msg').textContent =
+          'Importer ' + valid.length + ' plein(s) ? Tes données actuelles (' + entries.length + ' pleins) seront remplacées.';
+        document.getElementById('confirm-ok').onclick = function() {
+          applyImport(valid, importedKm);
+          closeConfirm();
+        };
+        document.getElementById('confirm-overlay').classList.add('open');
+      } else {
+        applyImport(valid, importedKm);
+      }
+    } catch (err) {
+      showToast('Erreur : fichier JSON invalide');
+    }
+  };
+  reader.readAsText(file);
+
+  // Reset l'input pour permettre de ré-importer le même fichier
+  event.target.value = '';
+}
+
+function applyImport(importedEntries, importedKm) {
+  // S'assurer que chaque entrée a un id unique
+  importedEntries.forEach(function(entry) {
+    if (!entry.id) entry.id = Date.now() + Math.round(Math.random() * 100000);
+    // Rétrocompatibilité : ajouter le champ complet s'il n'existe pas
+    if (entry.complet === undefined) entry.complet = true;
+  });
+
+  entries = importedEntries;
+  entries.sort(function(a, b) { return a.km - b.km; });
+  saveData(entries);
+
+  if (importedKm !== null && importedKm !== undefined) {
+    kmDepart = parseFloat(importedKm);
+    lsSet(SK_KM, kmDepart);
+  }
+
+  renderKmDepart();
+  refreshAll();
+  showToast(entries.length + ' plein(s) importé(s) ✓');
+}
+
+/* ===========================================
+   15. TOAST & UTILS
+   =========================================== */
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2500);
+}
+
+function formatDate(iso) {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/* ===========================================
+   16. REFRESH & INIT
+   =========================================== */
+function refreshAll() {
+  updateStats();
+  renderHistory();
+  if (document.getElementById('sec-charts').classList.contains('active')) renderCharts();
+}
+
+renderKmDepart();
+refreshAll();
+
+/* ===========================================
+   17. SERVICE WORKER — mode offline
+   =========================================== */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js').then(function(reg) {
+      console.log('[MonPlein] SW enregistré :', reg.scope);
+    }).catch(function(err) {
+      console.log('[MonPlein] SW non disponible :', err);
+    });
+  });
+}
+</script>
+</body>
+</html>

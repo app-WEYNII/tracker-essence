@@ -3,7 +3,7 @@
    By WEYNII
    ============================================================ */
 
-const CACHE_NAME = 'monplein-v5';
+const CACHE_NAME = 'monplein-v6';
 
 // Fichiers à mettre en cache lors de l'installation
 const ASSETS_TO_CACHE = [

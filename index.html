@@ -144,13 +144,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .badge-mixte{background:rgba(245,158,11,0.12);color:var(--amber-400)}
 .badge-autoroute{background:rgba(52,211,153,0.12);color:var(--green)}
 .badge-partiel{background:rgba(138,138,154,0.12);color:var(--text-secondary)}
+.badge-skip{background:var(--blue-dim);color:var(--blue);font-weight:600}
 .badge-anomaly{background:var(--red-dim);color:var(--red);font-weight:600}
 .badge-score{font-family:var(--font-mono);font-weight:600;font-size:0.62rem;padding:2px 7px;border-radius:10px}
 .badge-score-good{background:var(--green-dim);color:var(--green)}
 .badge-score-ok{background:rgba(245,158,11,0.12);color:var(--amber-400)}
 .badge-score-bad{background:var(--red-dim);color:var(--red)}
 
-.history-delete{width:30px;height:30px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.2s;align-self:center}
+.history-actions{display:flex;flex-direction:column;gap:4px;align-self:center}
+.history-edit{width:30px;height:30px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:13px;transition:all 0.2s}
+.history-edit:hover{background:var(--amber-glow);color:var(--amber-500)}
+.history-delete{width:30px;height:30px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.2s}
 .history-delete:hover{background:var(--red-dim);color:var(--red)}
 .empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}
 .empty-state .icon{font-size:40px;margin-bottom:12px}
@@ -219,6 +223,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .price-switch-btn.active{background:var(--amber-500);color:#000;border-color:var(--amber-500);font-weight:600}
 .price-switch-btn:not(.active):hover{color:var(--text-secondary);border-color:var(--text-muted)}
 .price-calc{font-size:0.68rem;color:var(--text-muted);margin-top:5px;font-style:italic;min-height:1em}
+.form-hint{font-size:0.68rem;color:var(--text-muted);margin-top:5px;line-height:1.4}
 
 .form-submit{width:100%;padding:14px;border:none;border-radius:var(--radius-sm);background:linear-gradient(135deg,var(--amber-500),var(--amber-600));color:#000;font-family:var(--font-display);font-size:0.92rem;font-weight:700;cursor:pointer;margin-top:8px;transition:all 0.2s}
 .form-submit:hover{box-shadow:0 4px 20px rgba(245,158,11,0.3)}
@@ -392,7 +397,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <div class="modal-header">
-      <h2>Nouveau plein</h2>
+      <h2 id="modal-title">Nouveau plein</h2>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <form id="fuel-form" onsubmit="handleSubmit(event)">
@@ -402,7 +407,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </div>
       <div class="form-group">
         <label class="form-label">Kilométrage compteur <span class="req">*</span></label>
-        <input type="number" class="form-input" id="f-km" placeholder="ex: 85230" required min="0" step="1">
+        <input type="number" class="form-input" id="f-km" placeholder="ex: 85230" required min="0" step="1" oninput="updateSkipCalc()">
         <div class="form-error" id="f-km-error">Le kilométrage doit être supérieur au précédent</div>
       </div>
       <div class="form-row">
@@ -438,6 +443,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             </div>
           </label>
         </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Km prêtés / non comptés</label>
+        <input type="number" class="form-input" id="f-skip" placeholder="0" min="0" step="1" value="" oninput="updateSkipCalc()">
+        <div class="price-calc" id="skip-calc"></div>
+        <div class="form-hint">Optionnel. Km roulés par quelqu'un d'autre (voiture prêtée) à <strong>exclure</strong> du calcul de conso. À utiliser si la voiture t'a été rendue avec le même niveau de carburant qu'au départ.</div>
       </div>
       <button type="submit" class="form-submit">Enregistrer le plein</button>
     </form>
@@ -479,6 +490,7 @@ function saveData(d) { lsSet(SK, JSON.stringify(d)); }
 var entries = loadData();
 var kmDepart = parseFloat(lsGet(SK_KM)) || null;
 var historyFilter = 'all'; // Filtre historique
+var editingId = null; // id du plein en cours de modification (null = création)
 
 /* ===========================================
    2. KM DE DÉPART
@@ -547,6 +559,9 @@ document.querySelectorAll('.tab').forEach(function(t) {
    4. MODAL — ouverture / fermeture / validation
    =========================================== */
 function openModal() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Nouveau plein';
+
   // Pré-remplir la date
   document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
 
@@ -560,6 +575,10 @@ function openModal() {
 
   // Reset checkbox plein complet
   document.getElementById('f-complet').checked = true;
+
+  // Reset champ km prêtés
+  document.getElementById('f-skip').value = '';
+  document.getElementById('skip-calc').textContent = '';
 
   // Reset price mode
   priceMode = 'litre';
@@ -584,11 +603,83 @@ function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
   document.body.style.overflow = '';
   document.getElementById('fuel-form').reset();
+  document.getElementById('skip-calc').textContent = '';
+  editingId = null;
 }
 
 document.getElementById('modal-overlay').addEventListener('click', function(e) {
   if (e.target === e.currentTarget) closeModal();
 });
+
+/* Ouvrir le modal en mode MODIFICATION d'un plein existant */
+function openEdit(id) {
+  var entry = entries.find(function(x) { return x.id === id; });
+  if (!entry) return;
+
+  editingId = id;
+  document.getElementById('modal-title').textContent = 'Modifier le plein';
+
+  document.getElementById('f-date').value = entry.date;
+
+  var kmInput = document.getElementById('f-km');
+  kmInput.value = entry.km;
+  kmInput.min = 0;
+  kmInput.placeholder = '';
+
+  document.getElementById('f-litres').value = entry.litres;
+  document.getElementById('f-complet').checked = entry.complet !== false;
+  document.getElementById('f-trajet').value = entry.trajet || 'mixte';
+  document.getElementById('f-skip').value = (entry.skipKm && entry.skipKm > 0) ? entry.skipKm : '';
+
+  // Prix : on réaffiche en mode "prix / L"
+  priceMode = 'litre';
+  document.getElementById('sw-prixl').classList.add('active');
+  document.getElementById('sw-prixtotal').classList.remove('active');
+  var prixInput = document.getElementById('f-prix');
+  prixInput.placeholder = 'ex: 1.72';
+  prixInput.step = '0.001';
+  prixInput.value = (entry.prixL !== null && entry.prixL !== undefined) ? entry.prixL : '';
+
+  updatePriceCalc();
+  updateSkipCalc();
+
+  kmInput.classList.remove('error');
+  document.getElementById('f-km-error').style.display = 'none';
+
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+/* Km précédent pour un km donné (en ignorant le plein en cours d'édition) */
+function getPrevKmFor(km) {
+  var below = entries.filter(function(e) { return e.id !== editingId && e.km < km; });
+  if (below.length === 0) return (kmDepart !== null) ? kmDepart : null;
+  below.sort(function(a, b) { return a.km - b.km; });
+  return below[below.length - 1].km;
+}
+
+/* Aperçu en direct de la distance réellement comptée */
+function updateSkipCalc() {
+  var calc = document.getElementById('skip-calc');
+  var km = parseFloat(document.getElementById('f-km').value);
+  var skip = parseFloat(document.getElementById('f-skip').value) || 0;
+
+  if (isNaN(km) || skip <= 0) { calc.style.color = ''; calc.textContent = ''; return; }
+
+  var prevKm = getPrevKmFor(km);
+  if (prevKm === null) { calc.style.color = ''; calc.textContent = ''; return; }
+
+  var raw = km - prevKm;
+  var eff = raw - skip;
+
+  if (eff <= 0) {
+    calc.style.color = 'var(--red)';
+    calc.textContent = '⚠ ' + skip.toLocaleString('fr-FR') + ' km à exclure ≥ ' + raw.toLocaleString('fr-FR') + ' km parcourus';
+  } else {
+    calc.style.color = '';
+    calc.textContent = '→ Distance comptée : ' + eff.toLocaleString('fr-FR') + ' km (sur ' + raw.toLocaleString('fr-FR') + ' km)';
+  }
+}
 
 /* Récupérer le dernier km enregistré */
 function getLastKm() {
@@ -653,19 +744,23 @@ function handleSubmit(e) {
   var prixRaw = parseFloat(document.getElementById('f-prix').value) || null;
   var trajet = document.getElementById('f-trajet').value;
   var complet = document.getElementById('f-complet').checked;
+  var skipKm = parseFloat(document.getElementById('f-skip').value) || 0;
+  if (skipKm < 0) skipKm = 0;
 
   // Validations
   if (!date || isNaN(km) || isNaN(litres) || litres <= 0) return;
 
-  // Validation km > dernier km
-  var lastKm = getLastKm();
-  if (lastKm !== null && km <= lastKm) {
-    var kmInput = document.getElementById('f-km');
-    kmInput.classList.add('error');
-    document.getElementById('f-km-error').style.display = 'block';
-    kmInput.focus();
-    setTimeout(function() { kmInput.classList.remove('error'); }, 600);
-    return;
+  // Validation km > dernier km (uniquement en création — en édition l'ordre est géré par le tri)
+  if (!editingId) {
+    var lastKm = getLastKm();
+    if (lastKm !== null && km <= lastKm) {
+      var kmInput = document.getElementById('f-km');
+      kmInput.classList.add('error');
+      document.getElementById('f-km-error').style.display = 'block';
+      kmInput.focus();
+      setTimeout(function() { kmInput.classList.remove('error'); }, 600);
+      return;
+    }
   }
 
   // Calculer prixL et cout selon le mode
@@ -683,24 +778,40 @@ function handleSubmit(e) {
     }
   }
 
-  // Créer l'entrée
-  var entry = {
-    id: Date.now(),
-    date: date,
-    km: km,
-    litres: litres,
-    prixL: prixL,
-    trajet: trajet,
-    complet: complet,
-    cout: cout
-  };
+  if (editingId) {
+    // --- MODIFICATION d'un plein existant ---
+    var existing = entries.find(function(e) { return e.id === editingId; });
+    if (existing) {
+      existing.date = date;
+      existing.km = km;
+      existing.litres = litres;
+      existing.prixL = prixL;
+      existing.trajet = trajet;
+      existing.complet = complet;
+      existing.cout = cout;
+      existing.skipKm = skipKm;
+    }
+  } else {
+    // --- CRÉATION ---
+    var entry = {
+      id: Date.now(),
+      date: date,
+      km: km,
+      litres: litres,
+      prixL: prixL,
+      trajet: trajet,
+      complet: complet,
+      cout: cout,
+      skipKm: skipKm
+    };
+    entries.push(entry);
+  }
 
-  entries.push(entry);
   entries.sort(function(a, b) { return a.km - b.km; });
   saveData(entries);
   closeModal();
   refreshAll();
-  showToast('Plein enregistré ✓');
+  showToast(editingId ? 'Plein modifié ✓' : 'Plein enregistré ✓');
 }
 
 /* ===========================================
@@ -729,6 +840,10 @@ function computeEntries() {
     }
 
     var distance = entry.km - prevKm;
+
+    // Soustraire les km "sautés" (ex: voiture prêtée) — ils ne comptent pas dans les stats
+    var skip = (typeof entry.skipKm === 'number' && entry.skipKm > 0) ? entry.skipKm : 0;
+    if (skip > 0) distance = distance - skip;
 
     // Ignorer les distances négatives/nulles (incohérence)
     if (distance <= 0) {
@@ -1028,6 +1143,12 @@ function renderHistory() {
       anomalyBadge = '<span class="history-badge badge-anomaly">⚠️ surcons.</span>';
     }
 
+    // Badge km prêtés / exclus
+    var skipBadge = '';
+    if (e.skipKm && e.skipKm > 0) {
+      skipBadge = '<span class="history-badge badge-skip" title="Km exclus (prêt)">🚗 −' + e.skipKm.toLocaleString('fr-FR') + ' km</span>';
+    }
+
     return '<div class="' + classes + '"><div>' +
       '<div class="history-date">' + formatDate(e.date) + '  ·  ' + e.km.toLocaleString('fr-FR') + ' km' +
         (joursStr ? '  ·  <span style="color:var(--blue)">' + joursStr + '</span>' : '') +
@@ -1035,14 +1156,17 @@ function renderHistory() {
       '<div class="history-main">' +
         '<span class="history-conso">' + cs + '<span class="unit"> L/100</span></span>' +
         '<span class="history-badge ' + bc + '">' + e.trajet + '</span>' +
-        partielBadge + scoreBadge + anomalyBadge +
+        partielBadge + skipBadge + scoreBadge + anomalyBadge +
       '</div>' +
       '<div class="history-meta">' +
         '<span>' + ds + '</span><span>' + e.litres + ' L</span>' +
         (pl ? '<span>' + pl + '</span>' : '') +
         (ct ? '<span>' + ct + '</span>' : '') +
       '</div>' +
-      '</div><button class="history-delete" onclick="confirmDelete(' + e.id + ')" title="Supprimer">🗑</button></div>';
+      '</div><div class="history-actions">' +
+        '<button class="history-edit" onclick="openEdit(' + e.id + ')" title="Modifier">✎</button>' +
+        '<button class="history-delete" onclick="confirmDelete(' + e.id + ')" title="Supprimer">🗑</button>' +
+      '</div></div>';
   }).join('');
 }
 
